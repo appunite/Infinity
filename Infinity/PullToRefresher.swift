@@ -161,7 +161,7 @@ class HeaderContainerView: UIView {
         super.layoutSubviews()
         
         for view in subviews {
-            view.center = CGPoint(x: self.bounds.midX, y: self.bounds.midY)
+            view.frame = CGRect(x: 0.0, y: view.bounds.minY, width: view.bounds.width, height: view.bounds.height)
         }
     }
     override func didMoveToSuperview() {
