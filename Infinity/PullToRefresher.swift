@@ -48,7 +48,7 @@ class PullToRefresher: NSObject {
                 
                 containerView.scrollView = scrollView
                 scrollView.addSubview(containerView)
-                containerView.frame = CGRect(x: 0, y: -defaultHeightToTrigger, width: scrollView.frame.width, height: defaultHeightToTrigger)
+                containerView.frame = CGRect(x: 0 + animatorOffset.horizontal, y: -defaultHeightToTrigger + animatorOffset.vertical, width: scrollView.frame.width, height: defaultHeightToTrigger)
             }
         }
     }
@@ -57,6 +57,16 @@ class PullToRefresher: NSObject {
     var action:(()->Void)?
     var enable = true
     
+    var animatorOffset: UIOffset = UIOffset() {
+        didSet {
+            if let scrollView = scrollView {
+                containerView.frame = CGRect(x: 0 + animatorOffset.horizontal, y: -defaultHeightToTrigger + animatorOffset.vertical, width: scrollView.frame.width, height: defaultHeightToTrigger)
+                if Infinity.debugModeEnabled {
+                  print(containerView.frame)
+                }
+            }
+        }
+    }
     // Values
     var defaultContentInset: UIEdgeInsets = UIEdgeInsets()
     var defaultHeightToTrigger: CGFloat = 0
@@ -118,28 +128,35 @@ class PullToRefresher: NSObject {
         didSet {
             self.animator.animateState(state)
             
-            switch state {
-            case .none where oldValue == .loading:
-                if !self.scrollbackImmediately {
-                    self.updatingState = true
-                    self.scrollView?.setContentInset(self.defaultContentInset, completion: { (finished) -> Void in
-                        self.updatingState = false
-                    })
+            DispatchQueue.main.async {
+                switch self.state {
+                case .none where oldValue == .loading:
+                    if !self.scrollbackImmediately {
+                        self.updatingState = true
+                        if self.scrollView is UICollectionView {
+                            self.scrollView?.setContentInset(self.defaultContentInset, completion: { [unowned self] (finished) -> Void in
+                                self.updatingState = false
+                            })
+                        } else {
+                            self.scrollView?.setContentInset(self.defaultContentInset, completion: { [unowned self] (finished) -> Void in
+                                self.updatingState = false
+                            })
+                        }
+                    }
+                    
+                case .loading where oldValue != .loading:
+                        if !self.scrollbackImmediately {
+                            self.updatingState = true
+                            var inset = self.defaultContentInset
+                            inset.top += self.defaultHeightToTrigger
+                            self.scrollView?.setContentInset(inset, completion: { [unowned self] (finished) -> Void in
+                                self.updatingState = false
+                            })
+                            self.action?()
+                        }
+                default:
+                    break
                 }
-                
-            case .loading where oldValue != .loading:
-                
-                if !self.scrollbackImmediately {
-                    self.updatingState = true
-                    var inset = self.defaultContentInset
-                    inset.top += self.defaultHeightToTrigger
-                    self.scrollView?.setContentInset(inset, completion: { (finished) -> Void in
-                        self.updatingState = false
-                    })
-                }
-                self.action?()
-            default:
-                break
             }
         }
     }

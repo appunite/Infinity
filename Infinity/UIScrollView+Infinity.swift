@@ -14,10 +14,138 @@ private var associatedInfiniteScrollerKey: String = "InfinityInfiniteScrollerKey
 private var associatedisPullToRefreshEnabledKey: String = "InfinityisPullToRefreshEnabledKey"
 private var associatedisInfiniteScrollEnabledKey: String = "InfinityisInfiniteScrollEnabledKey"
 
+private var associatedInfinityKey = "Infinity.Associated.Infinity"
+
 // MARK: - PullToRefresh
 extension UIScrollView {
+    public var fty: Infinity {
+        get {
+            if let value =  objc_getAssociatedObject(self, &associatedInfinityKey) as? Infinity {
+                return value
+            } else {
+                let newValue = Infinity(scrollView: self)
+                objc_setAssociatedObject(self, &associatedInfinityKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                
+                return newValue
+            }
+        }
+    }
 
-    public func addPullToRefresh(_ height: CGFloat = 60.0, animator: CustomPullToRefreshAnimator, action:(()->Void)?) {
+}
+
+public class PullToRefreshWrapper {
+    let scrollView: UIScrollView
+    init(scrollView: UIScrollView) {
+        self.scrollView = scrollView
+    }
+    
+    public func add(height: CGFloat = 60, animator: CustomPullToRefreshAnimator, action: (() -> Void)?) {
+        scrollView.addPullToRefresh(height, animator: animator, action: action)
+    }
+    public func bind(height: CGFloat = 60, animator: CustomPullToRefreshAnimator, action: (() -> Void)?) {
+        scrollView.bindPullToRefresh(height, toAnimator: animator, action: action)
+    }
+    public func remove() {
+        scrollView.removePullToRefresh()
+    }
+    public func begin() {
+        scrollView.beginRefreshing()
+    }
+    public func end() {
+        scrollView.endRefreshing()
+    }
+    public var isEnabled: Bool {
+        get {
+            return scrollView.isPullToRefreshEnabled
+        }
+        set {
+            scrollView.isPullToRefreshEnabled = newValue
+        }
+    }
+    public var isScrollingToTopImmediately: Bool {
+        get {
+            return scrollView.isScrollingToTopImmediately
+        }
+        set {
+            scrollView.isScrollingToTopImmediately = newValue
+        }
+    }
+    public var animatorOffset: UIOffset {
+        get {
+            if let offset = scrollView.pullToRefresher?.animatorOffset {
+                return offset
+            }
+            return UIOffset()
+        }
+        set {
+            scrollView.pullToRefresher?.animatorOffset = newValue
+        }
+    }
+}
+public class InfiniteScrollWrapper {
+    let scrollView: UIScrollView
+    init(scrollView: UIScrollView) {
+        self.scrollView = scrollView
+    }
+    public func add(height: CGFloat = 60, animator: CustomInfiniteScrollAnimator, action: (() -> Void)?) {
+        scrollView.addInfiniteScroll(height, animator: animator, action: action)
+    }
+    public func bind(height: CGFloat = 60, animator: CustomInfiniteScrollAnimator, action: (() -> Void)?) {
+        scrollView.bindInfiniteScroll(height, toAnimator: animator, action: action)
+    }
+    public func remove() {
+        scrollView.removeInfiniteScroll()
+    }
+    public func begin() {
+        scrollView.beginInfiniteScrolling()
+    }
+    public func end() {
+        scrollView.endInfiniteScrolling()
+    }
+    public var isEnabled: Bool {
+        get {
+            return scrollView.isInfiniteScrollEnabled
+        }
+        set {
+            scrollView.isInfiniteScrollEnabled = newValue
+        }
+    }
+    public var isStickToContent: Bool {
+        get {
+            return scrollView.isInfiniteStickToContent
+        }
+        set {
+            scrollView.isInfiniteStickToContent = newValue
+        }
+    }
+}
+
+public class Infinity {
+    /// Will output some debug information if `true`.
+    /// Default value: `false`
+    public static var debugModeEnabled = false
+    public let pullToRefresh: PullToRefreshWrapper
+    public let infiniteScroll: InfiniteScrollWrapper
+    
+    let scrollView: UIScrollView
+    
+    init(scrollView: UIScrollView) {
+        self.scrollView = scrollView
+        pullToRefresh = PullToRefreshWrapper(scrollView: scrollView)
+        infiniteScroll = InfiniteScrollWrapper(scrollView: scrollView)
+    }
+    
+    
+    public func clear() {
+        pullToRefresh.remove()
+        infiniteScroll.remove()
+    }
+}
+
+
+extension UIScrollView {
+    
+    func addPullToRefresh(_ height: CGFloat = 60.0, animator: CustomPullToRefreshAnimator, action:(()->Void)?) {
         
         bindPullToRefresh(height, toAnimator: animator, action: action)
         self.pullToRefresher?.scrollbackImmediately = false
@@ -27,21 +155,21 @@ extension UIScrollView {
         }
         
     }
-    public func bindPullToRefresh(_ height: CGFloat = 60.0, toAnimator: CustomPullToRefreshAnimator, action:(()->Void)?) {
+    func bindPullToRefresh(_ height: CGFloat = 60.0, toAnimator: CustomPullToRefreshAnimator, action:(()->Void)?) {
         removePullToRefresh()
         
         self.pullToRefresher = PullToRefresher(height: height, animator: toAnimator)
         self.pullToRefresher?.scrollView = self
         self.pullToRefresher?.action = action
     }
-    public func removePullToRefresh() {
+    func removePullToRefresh() {
         self.pullToRefresher?.scrollView = nil
         self.pullToRefresher = nil
     }
-    public func beginRefreshing() {
+    func beginRefreshing() {
         self.pullToRefresher?.beginRefreshing()
     }
-    public func endRefreshing() {
+    func endRefreshing() {
         self.pullToRefresher?.endRefreshing()
     }
     
@@ -54,24 +182,20 @@ extension UIScrollView {
             objc_setAssociatedObject(self, &associatedPullToRefresherKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
-    public var isPullToRefreshEnabled: Bool? {
+    var isPullToRefreshEnabled: Bool {
         get {
-            return pullToRefresher?.enable
+            return pullToRefresher?.enable ?? false
         }
         set {
-            if let newValue = newValue {
-                pullToRefresher?.enable = newValue
-            }
+            pullToRefresher?.enable = newValue
         }
     }
-    public var scrollToTopImmediately: Bool? {
+    var isScrollingToTopImmediately: Bool {
         get {
-            return pullToRefresher?.scrollbackImmediately
+            return pullToRefresher?.scrollbackImmediately ?? false
         }
         set {
-            if let newValue = newValue {
-                pullToRefresher?.scrollbackImmediately = newValue
-            }
+            pullToRefresher?.scrollbackImmediately = newValue
         }
     }
 }
@@ -79,28 +203,28 @@ extension UIScrollView {
 // MARK: - InfiniteScroll
 extension UIScrollView {
     
-    public func addInfiniteScroll(_ height: CGFloat = 80.0, animator: CustomInfiniteScrollAnimator, action: (() -> Void)?) {
+    func addInfiniteScroll(_ height: CGFloat = 80.0, animator: CustomInfiniteScrollAnimator, action: (() -> Void)?) {
         bindInfiniteScroll(height, toAnimator: animator, action: action)
         
         if let animatorView = animator as? UIView {
             self.infiniteScroller?.containerView.addSubview(animatorView)
         }
     }
-    public func bindInfiniteScroll(_ height: CGFloat = 80.0, toAnimator: CustomInfiniteScrollAnimator, action: (() -> Void)?) {
+    func bindInfiniteScroll(_ height: CGFloat = 80.0, toAnimator: CustomInfiniteScrollAnimator, action: (() -> Void)?) {
         removeInfiniteScroll()
         
         self.infiniteScroller = InfiniteScroller(height: height, animator: toAnimator)
         self.infiniteScroller?.scrollView = self
         self.infiniteScroller?.action = action
     }
-    public func removeInfiniteScroll() {
+    func removeInfiniteScroll() {
         self.infiniteScroller?.scrollView = nil
         self.infiniteScroller = nil
     }
-    public func beginInfiniteScrolling() {
+    func beginInfiniteScrolling() {
         self.infiniteScroller?.beginInfiniteScrolling()
     }
-    public func endInfiniteScrolling() {
+    func endInfiniteScrolling() {
         self.infiniteScroller?.endInfiniteScrolling()
     }
     
@@ -114,68 +238,21 @@ extension UIScrollView {
         }
     }
     // 当并未添加infinityScroll时返回的为nil，表示并不支持这种配置
-    public var infiniteStickToContent: Bool? {
+    var isInfiniteStickToContent: Bool {
         get {
-            return self.infiniteScroller?.stickToContent
+            return self.infiniteScroller?.stickToContent ?? false
         }
         set {
-            if let newValue = newValue {
-                self.infiniteScroller?.stickToContent = newValue
-            }
+            self.infiniteScroller?.stickToContent = newValue
         }
     }
-    public var isInfiniteScrollEnabled: Bool? {
+    var isInfiniteScrollEnabled: Bool {
         get {
-            return infiniteScroller?.enable
+            return infiniteScroller?.enable ?? false
         }
         set {
-            if let newValue = newValue {
-                infiniteScroller?.enable = newValue
-            }
+            infiniteScroller?.enable = newValue
         }
-    }
-}
-
-private let NavigationBarHeight: CGFloat = 64
-private let StatusBarHeight: CGFloat = 20
-private let TabBarHeight: CGFloat = 49
-
-public enum InfinityInsetTopType {
-    case none
-    case navigationBar
-    case statusBar
-    case custom(height: CGFloat)
-}
-public enum InfinityInsetBottomType {
-    case none
-    case tabBar
-    case custom(height: CGFloat)
-}
-
-extension UIScrollView {
-    public func setInsetType(withTop top: InfinityInsetTopType, bottom: InfinityInsetBottomType) {
-        var insetTop: CGFloat = 0
-        var insetBottom: CGFloat = 0
-        
-        switch top {
-        case .none:
-            break
-        case .statusBar:
-            insetTop = StatusBarHeight
-        case .navigationBar:
-            insetTop = NavigationBarHeight
-        case .custom(let height):
-            insetTop = height
-        }
-        switch bottom {
-        case .none:
-            break
-        case .tabBar:
-            insetBottom = TabBarHeight
-        case .custom(let height):
-            insetBottom = height
-        }
-        self.contentInset = UIEdgeInsets(top: insetTop, left: 0, bottom: insetBottom, right: 0)
     }
 }
 
